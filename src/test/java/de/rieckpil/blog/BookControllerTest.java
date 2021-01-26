@@ -1,15 +1,12 @@
 package de.rieckpil.blog;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -28,9 +25,6 @@ public class BookControllerTest {
   @Autowired
   private MockMvc mockMvc;
 
-  @Autowired
-  private ObjectMapper objectMapper;
-
   @MockBean
   private BookService bookService;
 
@@ -40,17 +34,18 @@ public class BookControllerTest {
   @Test
   public void postingANewBookShouldCreateANewBook() throws Exception {
 
-    BookRequest bookRequest = new BookRequest();
-    bookRequest.setAuthor("Duke");
-    bookRequest.setIsbn("1337");
-    bookRequest.setTitle("Java 11");
-
     when(bookService.createNewBook(bookRequestArgumentCaptor.capture())).thenReturn(1L);
 
     this.mockMvc
       .perform(post("/api/books")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(bookRequest)))
+        .content("""
+          {
+           "author": "Duke",
+           "isbn": "1337",
+           "title": "Java 11"
+          }
+          """))
       .andExpect(status().isCreated())
       .andExpect(header().exists("Location"))
       .andExpect(header().string("Location", "http://localhost/api/books/1"));
@@ -110,38 +105,34 @@ public class BookControllerTest {
   @Test
   public void updateBookWithKnownIdShouldUpdateTheBook() throws Exception {
 
-    BookRequest bookRequest = new BookRequest();
-    bookRequest.setAuthor("Duke");
-    bookRequest.setIsbn("1337");
-    bookRequest.setTitle("Java 12");
-
     when(bookService.updateBook(eq(1L), bookRequestArgumentCaptor.capture()))
-      .thenReturn(createBook(1L, "Java 12", "Duke", "1337"));
+      .thenReturn(createBook(1L, "Java 15", "Duke", "1337"));
 
     this.mockMvc
       .perform(put("/api/books/1")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(bookRequest)))
+        .content("""
+          {
+           "author": "Duke",
+           "isbn": "1337",
+           "title": "Java 15"
+          }
+          """))
       .andExpect(status().isOk())
       .andExpect(content().contentType("application/json"))
-      .andExpect(jsonPath("$.title", is("Java 12")))
+      .andExpect(jsonPath("$.title", is("Java 15")))
       .andExpect(jsonPath("$.author", is("Duke")))
       .andExpect(jsonPath("$.isbn", is("1337")))
       .andExpect(jsonPath("$.id", is(1)));
 
     assertThat(bookRequestArgumentCaptor.getValue().getAuthor(), is("Duke"));
     assertThat(bookRequestArgumentCaptor.getValue().getIsbn(), is("1337"));
-    assertThat(bookRequestArgumentCaptor.getValue().getTitle(), is("Java 12"));
+    assertThat(bookRequestArgumentCaptor.getValue().getTitle(), is("Java 15"));
 
   }
 
   @Test
   public void updateBookWithUnknownIdShouldReturn404() throws Exception {
-
-    BookRequest bookRequest = new BookRequest();
-    bookRequest.setAuthor("Duke");
-    bookRequest.setIsbn("1337");
-    bookRequest.setTitle("Java 12");
 
     when(bookService.updateBook(eq(42L), bookRequestArgumentCaptor.capture()))
       .thenThrow(new BookNotFoundException("The book with id '42' was not found"));
@@ -149,7 +140,14 @@ public class BookControllerTest {
     this.mockMvc
       .perform(put("/api/books/42")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(bookRequest)))
+        .content(
+          """
+            {
+             "author": "Duke",
+             "isbn": "1337",
+             "title": "Java 12"
+            }
+            """))
       .andExpect(status().isNotFound());
 
   }
@@ -162,5 +160,4 @@ public class BookControllerTest {
     book.setId(id);
     return book;
   }
-
 }
